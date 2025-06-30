@@ -67,13 +67,28 @@ ipcMain.on('print-file', async (event, { filePath, printerName }) => {
       // Create a new window to load and print the file
       const printWindow = new BrowserWindow({ show: false })
       await printWindow.loadFile(filePath)
-      const result = await printWindow.webContents.print(data)
-      printWindow.close()
-      event.reply('print-complete', { success: result })
+      try {
+        await printWindow.webContents.print(data)
+        event.reply('print-complete', { success: true })
+      } catch (printError) {
+        event.reply('print-complete', { 
+          success: false, 
+          error: printError.message || 'Failed to print file' 
+        })
+      } finally {
+        printWindow.close()
+      }
     } else {
       // Print the current window
-      const result = await win.webContents.print(data)
-      event.reply('print-complete', { success: result })
+      try {
+        await win.webContents.print(data)
+        event.reply('print-complete', { success: true })
+      } catch (printError) {
+        event.reply('print-complete', { 
+          success: false, 
+          error: printError.message || 'Failed to print current page' 
+        })
+      }
     }
   } catch (error) {
     console.error('Printing error:', error)
