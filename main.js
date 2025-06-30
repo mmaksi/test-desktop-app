@@ -7,10 +7,8 @@ const fs = require('fs')
 autoUpdater.autoDownload = false
 autoUpdater.autoInstallOnAppQuit = true
 
-let mainWindow = null
-
 const createWindow = () => {
-  mainWindow = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
@@ -19,22 +17,22 @@ const createWindow = () => {
     }
   })
 
-  mainWindow.loadFile('index.html')
+  win.loadFile('index.html')
 
   // Check for updates when app starts
   autoUpdater.checkForUpdates()
 
   // Auto updater events
   autoUpdater.on('update-available', (info) => {
-    mainWindow.webContents.send('update-available', info)
+    win.webContents.send('update-available', info)
   })
 
   autoUpdater.on('download-progress', (progressObj) => {
-    mainWindow.webContents.send('download-progress', progressObj)
+    win.webContents.send('download-progress', progressObj)
   })
 
   autoUpdater.on('update-downloaded', (info) => {
-    mainWindow.webContents.send('update-downloaded', info)
+    win.webContents.send('update-downloaded', info)
   })
 }
 
@@ -42,111 +40,93 @@ app.whenReady().then(() => {
   createWindow()
 })
 
-// Handle file selection and printing
-ipcMain.on('select-and-print-file', async (event) => {
-  if (!mainWindow) {
-    event.reply('print-complete', { 
-      success: false, 
-      error: 'No active window found'
-    })
-    return
-  }
-
+// Handle printing request
+ipcMain.on('print-file', async (event, { filePath }) => {
+  const win = BrowserWindow.getFocusedWindow()
+  
   try {
-    // Show file selection dialog
-    const result = await dialog.showOpenDialog(mainWindow, {
-      properties: ['openFile'],
-      filters: [
-        { name: 'Documents', extensions: ['pdf', 'txt', 'doc', 'docx'] }
-      ]
-    })
-
-    if (result.canceled || result.filePaths.length === 0) {
-      return
+    // Print settings
+    const printOptions = {
+      silent: false,
+      printBackground: true,
+      color: true,
+      margins: {
+        marginType: 'none'
+      },
+      landscape: false,
+      scaleFactor: 100,
     }
-
-    const filePath = result.filePaths[0]
-
-    // Create a new window for printing
-    const printWindow = new BrowserWindow({
-      width: 800,
-      height: 600,
-      show: false
-    })
-
-    try {
-      // Load the file
-      if (filePath.toLowerCase().endsWith('.pdf')) {
-        await printWindow.loadURL(`file://${filePath}`)
-      } else {
-        const content = fs.readFileSync(filePath, 'utf-8')
-        await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`
-          <html>
-            <body style="font-family: monospace; white-space: pre-wrap; padding: 20px;">
-              ${content}
-            </body>
-          </html>
-        `)}`)
+    
+    // If filePath is provided, print that file, otherwise print current window
+    if (filePath) {
+      // Verify file exists
+      if (!fs.existsSync(filePath)) {
+        throw new Error('File not found')
       }
 
-      // Wait for the page to load
-      await new Promise(resolve => {
-        printWindow.webContents.once('did-finish-load', resolve)
+      // Create a new window to load and print the file
+      const printWindow = new BrowserWindow({
+        show: false,
+        webPreferences: {
+          nodeIntegration: true,
+          contextIsolation: false
+        }
       })
 
-      // Print with dialog
-      printWindow.webContents.executeJavaScript(`
-        window.print();
-        true;  // Return value for executeJavaScript
-      `)
-
-      // Clean up after a delay to ensure print dialog is shown
-      setTimeout(() => {
-        if (!printWindow.isDestroyed()) {
-          printWindow.close()
+      // Determine file type and handle accordingly
+      const fileExtension = path.extname(filePath).toLowerCase()
+      
+      try {
+        if (['.pdf', '.txt', '.html', '.htm'].includes(fileExtension)) {
+          // For PDFs and text files, we can load them directly
+          await printWindow.loadFile(filePath)
+        } else {
+          // For other files, we'll show an error
+          throw new Error('Unsupported file type. Please select a PDF, TXT, or HTML file.')
         }
-      }, 1000)
 
-      event.reply('print-complete', { success: true })
-    } catch (error) {
-      console.error('Print error:', error)
-      if (!printWindow.isDestroyed()) {
+        // Wait for the window to finish loading
+        await new Promise(resolve => printWindow.webContents.on('did-finish-load', resolve))
+        
+        const success = await new Promise((resolve) => {
+          printWindow.webContents.print(printOptions, (success, failureReason) => {
+            resolve(success)
+          })
+        })
+        
+        event.reply('print-complete', { success })
+      } catch (printError) {
+        console.error('Print file error:', printError)
+        event.reply('print-complete', { 
+          success: false, 
+          error: printError.message || 'Failed to print file' 
+        })
+      } finally {
         printWindow.close()
       }
-      throw error
+    } else {
+      // Print the current window
+      try {
+        const success = await new Promise((resolve) => {
+          win.webContents.print(printOptions, (success, failureReason) => {
+            resolve(success)
+          })
+        })
+        
+        event.reply('print-complete', { success })
+      } catch (printError) {
+        console.error('Print current page error:', printError)
+        event.reply('print-complete', { 
+          success: false, 
+          error: printError.message || 'Failed to print current page' 
+        })
+      }
     }
   } catch (error) {
-    console.error('General error:', error)
+    console.error('General printing error:', error)
     event.reply('print-complete', { 
       success: false, 
-      error: error.message || 'Failed to print file'
-    })
-  }
-})
-
-// Handle printing current page
-ipcMain.on('print-current-page', async (event) => {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    event.reply('print-complete', { 
-      success: false, 
-      error: 'No active window found'
-    })
-    return
-  }
-
-  try {
-    // Use JavaScript's print() function
-    await mainWindow.webContents.executeJavaScript(`
-      window.print();
-      true;  // Return value for executeJavaScript
-    `)
-    
-    event.reply('print-complete', { success: true })
-  } catch (error) {
-    console.error('Print error:', error)
-    event.reply('print-complete', { 
-      success: false, 
-      error: error.message || 'Failed to print current page'
+      error: error.message || 'Failed to print. Please make sure a printer is properly connected and try again.'
     })
   }
 })
