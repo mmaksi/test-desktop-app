@@ -1,6 +1,5 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron')
+const { app, BrowserWindow, ipcMain } = require('electron')
 const { autoUpdater } = require('electron-updater')
-const path = require('path')
 
 // Configure auto updater
 autoUpdater.autoDownload = false
@@ -17,78 +16,11 @@ const createWindow = () => {
   })
 
   win.loadFile('index.html')
-
-  // Check for updates when app starts
   autoUpdater.checkForUpdates()
-
-  // Auto updater events
-  autoUpdater.on('update-available', (info) => {
-    win.webContents.send('update-available', info)
-  })
-
-  autoUpdater.on('download-progress', (progressObj) => {
-    win.webContents.send('download-progress', progressObj)
-  })
-
-  autoUpdater.on('update-downloaded', (info) => {
-    win.webContents.send('update-downloaded', info)
-  })
 }
 
-app.whenReady().then(() => {
-  createWindow()
-})
-
-// Handle printing request
-ipcMain.on('print-file', async (event) => {
-  const win = BrowserWindow.getFocusedWindow()
-  
-  try {
-    // Print settings
-    const printOptions = {
-      silent: false,
-      printBackground: true,
-      color: true,
-      margins: {
-        marginType: 'none'
-      },
-      landscape: false,
-      scaleFactor: 100,
-    }
-    
-    try {
-      const success = await new Promise((resolve) => {
-        win.webContents.print(printOptions, (success, failureReason) => {
-          resolve(success)
-        })
-      })
-      
-      event.reply('print-complete', { success })
-    } catch (printError) {
-      console.error('Print error:', printError)
-      event.reply('print-complete', { 
-        success: false, 
-        error: printError.message || 'Failed to print page' 
-      })
-    }
-  } catch (error) {
-    console.error('General printing error:', error)
-    event.reply('print-complete', { 
-      success: false, 
-      error: error.message || 'Failed to print. Please make sure a printer is properly connected and try again.'
-    })
-  }
-})
-
-// Handle update download request
-ipcMain.on('download-update', () => {
-  autoUpdater.downloadUpdate()
-})
-
-// Handle update installation request
-ipcMain.on('install-update', () => {
-  autoUpdater.quitAndInstall()
-})
+// App lifecycle events
+app.whenReady().then(createWindow)
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -100,4 +32,54 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow()
   }
+})
+
+// Print handling
+ipcMain.on('print-file', async (event) => {
+  const win = BrowserWindow.getFocusedWindow()
+  
+  try {
+    const printOptions = {
+      silent: false,
+      printBackground: true,
+      color: true,
+      margins: { marginType: 'none' },
+      landscape: false,
+      scaleFactor: 100,
+    }
+    
+    const success = await new Promise((resolve) => {
+      win.webContents.print(printOptions, (success) => resolve(success))
+    })
+    
+    event.reply('print-complete', { success })
+  } catch (error) {
+    console.error('Print error:', error)
+    event.reply('print-complete', { 
+      success: false, 
+      error: error.message || 'Failed to print. Please check your printer connection.'
+    })
+  }
+})
+
+// Auto-update events
+autoUpdater.on('update-available', (info) => {
+  BrowserWindow.getFocusedWindow()?.webContents.send('update-available', info)
+})
+
+autoUpdater.on('download-progress', (progressObj) => {
+  BrowserWindow.getFocusedWindow()?.webContents.send('download-progress', progressObj)
+})
+
+autoUpdater.on('update-downloaded', (info) => {
+  BrowserWindow.getFocusedWindow()?.webContents.send('update-downloaded', info)
+})
+
+// Update handling
+ipcMain.on('download-update', () => {
+  autoUpdater.downloadUpdate()
+})
+
+ipcMain.on('install-update', () => {
+  autoUpdater.quitAndInstall()
 })

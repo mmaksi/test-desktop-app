@@ -1,11 +1,10 @@
 {
   "name": "my-electron-app",
   "version": "1.0.0",
-  "description": "test app",
+  "description": "An Electron app with printing and auto-update capabilities",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "test": "echo \"Error: no test specified\" && exit 1",
     "build": "electron-builder build --mac --win --publish never",
     "deploy": "electron-builder build --mac --win --publish always"
   },
@@ -13,15 +12,8 @@
     "type": "git",
     "url": "git+https://github.com/mmaksi/test-desktop-app.git"
   },
-  "keywords": [
-    "electron"
-  ],
   "author": "Picosoft GmbH",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/mmaksi/test-desktop-app/issues"
-  },
-  "homepage": "https://github.com/mmaksi/test-desktop-app#readme",
   "devDependencies": {
     "electron": "^37.1.0",
     "electron-builder": "^26.0.12",
@@ -40,7 +32,7 @@
       "private": true
     },
     "mac": {
-      "category": "public.app-category.utilities",
+      "category": "public.app.utilities",
       "target": ["dmg", "zip"]
     },
     "win": {

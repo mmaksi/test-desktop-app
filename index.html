@@ -11,13 +11,17 @@
       http-equiv="X-Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
     />
-    <title>Electron App with Print & Update</title>
+    <title>Electron App</title>
     <style>
+      /* Base styles */
       body {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         padding: 20px;
         background-color: #f5f5f5;
+        margin: 0;
       }
+
+      /* Layout */
       .container {
         max-width: 800px;
         margin: 0 auto;
@@ -26,20 +30,28 @@
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
+
       .section {
-        margin-bottom: 30px;
+        margin-bottom: 20px;
         padding: 20px;
         border: 1px solid #e0e0e0;
         border-radius: 4px;
       }
+
+      /* Typography */
       h1 {
         color: #333;
         margin-bottom: 20px;
+        font-size: 24px;
       }
+
       h2 {
         color: #666;
         margin-bottom: 15px;
+        font-size: 18px;
       }
+
+      /* Buttons */
       button {
         background-color: #4CAF50;
         color: white;
@@ -49,40 +61,51 @@
         cursor: pointer;
         margin-right: 10px;
         font-size: 14px;
+        transition: background-color 0.2s;
       }
+
       button:hover {
         background-color: #45a049;
       }
+
       button:disabled {
         background-color: #cccccc;
         cursor: not-allowed;
       }
-      #updateStatus, #printStatus {
+
+      /* Status messages */
+      #printStatus, #updateStatus {
         margin-top: 10px;
         padding: 10px;
         border-radius: 4px;
       }
+
       .success {
         background-color: #dff0d8;
         color: #3c763d;
       }
+
       .error {
         background-color: #f2dede;
         color: #a94442;
       }
+
       .info {
         background-color: #d9edf7;
         color: #31708f;
       }
+
+      /* Progress bar */
       progress {
         width: 100%;
+        height: 8px;
         margin-top: 10px;
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>Electron App Features</h1>
+      <h1>Electron App</h1>
 
       <div class="section">
         <h2>Print Document</h2>
