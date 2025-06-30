@@ -39,26 +39,27 @@ app.whenReady().then(() => {
   createWindow()
 })
 
+// Handle get printers request
+ipcMain.handle('get-printers', async (event) => {
+  const win = BrowserWindow.getFocusedWindow()
+  try {
+    const printers = await win.webContents.getPrintersAsync()
+    return { success: true, printers }
+  } catch (error) {
+    console.error('Error getting printers:', error)
+    return { success: false, error: error.message }
+  }
+})
+
 // Handle printing request
-ipcMain.on('print-file', async (event, filePath) => {
+ipcMain.on('print-file', async (event, { filePath, printerName }) => {
   const win = BrowserWindow.getFocusedWindow()
   
   try {
-    // Get list of available printers
-    const printers = win.webContents.getPrinters()
-    
-    if (printers.length === 0) {
-      event.reply('print-complete', { 
-        success: false, 
-        error: 'No printers found. Please connect a printer to your computer and try again.'
-      })
-      return
-    }
-
     const data = {
       silent: false,
       printBackground: true,
-      deviceName: '', // Leave empty to show printer selection dialog
+      deviceName: printerName || '', // Use selected printer or show dialog if empty
     }
     
     // If filePath is provided, print that file, otherwise print current window
@@ -75,6 +76,7 @@ ipcMain.on('print-file', async (event, filePath) => {
       event.reply('print-complete', { success: result })
     }
   } catch (error) {
+    console.error('Printing error:', error)
     event.reply('print-complete', { 
       success: false, 
       error: error.message || 'Failed to print. Please make sure a printer is properly connected and try again.'
