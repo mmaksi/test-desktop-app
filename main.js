@@ -6,8 +6,10 @@ const path = require('path')
 autoUpdater.autoDownload = false
 autoUpdater.autoInstallOnAppQuit = true
 
+let mainWindow = null
+
 const createWindow = () => {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
@@ -16,22 +18,22 @@ const createWindow = () => {
     }
   })
 
-  win.loadFile('index.html')
+  mainWindow.loadFile('index.html')
 
   // Check for updates when app starts
   autoUpdater.checkForUpdates()
 
   // Auto updater events
   autoUpdater.on('update-available', (info) => {
-    win.webContents.send('update-available', info)
+    mainWindow.webContents.send('update-available', info)
   })
 
   autoUpdater.on('download-progress', (progressObj) => {
-    win.webContents.send('download-progress', progressObj)
+    mainWindow.webContents.send('download-progress', progressObj)
   })
 
   autoUpdater.on('update-downloaded', (info) => {
-    win.webContents.send('update-downloaded', info)
+    mainWindow.webContents.send('update-downloaded', info)
   })
 }
 
@@ -41,8 +43,6 @@ app.whenReady().then(() => {
 
 // Handle printing request
 ipcMain.on('print-file', async (event, { filePath }) => {
-  const win = BrowserWindow.getFocusedWindow()
-  
   try {
     // Print settings
     const printOptions = {
@@ -86,13 +86,19 @@ ipcMain.on('print-file', async (event, { filePath }) => {
           error: printError.message || 'Failed to print file' 
         })
       } finally {
-        printWindow.close()
+        if (!printWindow.isDestroyed()) {
+          printWindow.close()
+        }
       }
     } else {
       // Print the current window
+      if (!mainWindow || mainWindow.isDestroyed()) {
+        throw new Error('No active window found')
+      }
+
       try {
         const success = await new Promise((resolve) => {
-          win.webContents.print(printOptions, (success, failureReason) => {
+          mainWindow.webContents.print(printOptions, (success, failureReason) => {
             resolve(success)
           })
         })
