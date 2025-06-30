@@ -1,0 +1,48 @@
+{
+  "name": "my-electron-app",
+  "version": "1.0.0",
+  "description": "test app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "electron-builder build",
+    "publish": "electron-builder build --publish always"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mmaksi/test-desktop-app.git"
+  },
+  "keywords": [
+    "electron"
+  ],
+  "author": "Picosoft GmbH",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mmaksi/test-desktop-app/issues"
+  },
+  "homepage": "https://github.com/mmaksi/test-desktop-app#readme",
+  "devDependencies": {
+    "electron": "^37.1.0",
+    "electron-builder": "^26.0.12",
+    "electron-updater": "^6.6.2"
+  },
+  "build": {
+    "appId": "com.picosoft.my-electron-app",
+    "productName": "My Electron App",
+    "mac": {
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "linux": {
+      "target": ["AppImage"]
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "mmaksi",
+      "repo": "test-desktop-app"
+    }
+  }
+}
