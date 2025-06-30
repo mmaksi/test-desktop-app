@@ -9,33 +9,6 @@ document.getElementById('printCurrentPage').addEventListener('click', async () =
   ipcRenderer.send('print-file', {})
 })
 
-document.getElementById('printFile').addEventListener('click', async () => {
-  const statusDiv = document.getElementById('printStatus')
-  statusDiv.textContent = ''  // Clear any previous status
-  statusDiv.className = ''    // Clear any previous styling
-
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = '.pdf,.txt,.html,.htm'
-  
-  input.onchange = async (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      // Check file extension
-      const fileExtension = file.name.split('.').pop().toLowerCase()
-      if (!['pdf', 'txt', 'html', 'htm'].includes(fileExtension)) {
-        statusDiv.className = 'error'
-        statusDiv.textContent = 'Please select a PDF, TXT, or HTML file.'
-        return
-      }
-      
-      ipcRenderer.send('print-file', { filePath: file.path })
-    }
-  }
-  
-  input.click()
-})
-
 ipcRenderer.on('print-complete', (event, result) => {
   const statusDiv = document.getElementById('printStatus')
   if (result.success) {

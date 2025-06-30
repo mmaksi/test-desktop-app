@@ -1,7 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron')
 const { autoUpdater } = require('electron-updater')
 const path = require('path')
-const fs = require('fs')
 
 // Configure auto updater
 autoUpdater.autoDownload = false
@@ -41,7 +40,7 @@ app.whenReady().then(() => {
 })
 
 // Handle printing request
-ipcMain.on('print-file', async (event, { filePath }) => {
+ipcMain.on('print-file', async (event) => {
   const win = BrowserWindow.getFocusedWindow()
   
   try {
@@ -57,70 +56,20 @@ ipcMain.on('print-file', async (event, { filePath }) => {
       scaleFactor: 100,
     }
     
-    // If filePath is provided, print that file, otherwise print current window
-    if (filePath) {
-      // Verify file exists
-      if (!fs.existsSync(filePath)) {
-        throw new Error('File not found')
-      }
-
-      // Create a new window to load and print the file
-      const printWindow = new BrowserWindow({
-        show: false,
-        webPreferences: {
-          nodeIntegration: true,
-          contextIsolation: false
-        }
+    try {
+      const success = await new Promise((resolve) => {
+        win.webContents.print(printOptions, (success, failureReason) => {
+          resolve(success)
+        })
       })
-
-      // Determine file type and handle accordingly
-      const fileExtension = path.extname(filePath).toLowerCase()
       
-      try {
-        if (['.pdf', '.txt', '.html', '.htm'].includes(fileExtension)) {
-          // For PDFs and text files, we can load them directly
-          await printWindow.loadFile(filePath)
-        } else {
-          // For other files, we'll show an error
-          throw new Error('Unsupported file type. Please select a PDF, TXT, or HTML file.')
-        }
-
-        // Wait for the window to finish loading
-        await new Promise(resolve => printWindow.webContents.on('did-finish-load', resolve))
-        
-        const success = await new Promise((resolve) => {
-          printWindow.webContents.print(printOptions, (success, failureReason) => {
-            resolve(success)
-          })
-        })
-        
-        event.reply('print-complete', { success })
-      } catch (printError) {
-        console.error('Print file error:', printError)
-        event.reply('print-complete', { 
-          success: false, 
-          error: printError.message || 'Failed to print file' 
-        })
-      } finally {
-        printWindow.close()
-      }
-    } else {
-      // Print the current window
-      try {
-        const success = await new Promise((resolve) => {
-          win.webContents.print(printOptions, (success, failureReason) => {
-            resolve(success)
-          })
-        })
-        
-        event.reply('print-complete', { success })
-      } catch (printError) {
-        console.error('Print current page error:', printError)
-        event.reply('print-complete', { 
-          success: false, 
-          error: printError.message || 'Failed to print current page' 
-        })
-      }
+      event.reply('print-complete', { success })
+    } catch (printError) {
+      console.error('Print error:', printError)
+      event.reply('print-complete', { 
+        success: false, 
+        error: printError.message || 'Failed to print page' 
+      })
     }
   } catch (error) {
     console.error('General printing error:', error)
