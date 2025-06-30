@@ -6,8 +6,8 @@
   "scripts": {
     "start": "electron .",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "electron-builder build",
-    "publish": "electron-builder build --publish always"
+    "build": "electron-builder build --mac --win --publish never",
+    "deploy": "electron-builder build --mac --win --publish always"
   },
   "repository": {
     "type": "git",
@@ -30,19 +30,25 @@
   "build": {
     "appId": "com.picosoft.my-electron-app",
     "productName": "My Electron App",
-    "mac": {
-      "category": "public.app-category.utilities"
-    },
-    "win": {
-      "target": ["nsis"]
-    },
-    "linux": {
-      "target": ["AppImage"]
+    "directories": {
+      "output": "dist"
     },
     "publish": {
       "provider": "github",
       "owner": "mmaksi",
-      "repo": "test-desktop-app"
+      "repo": "test-desktop-app",
+      "private": true
+    },
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false
     }
   }
 }
