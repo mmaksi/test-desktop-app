@@ -6,29 +6,15 @@ document.getElementById('printCurrentPage').addEventListener('click', async () =
   statusDiv.textContent = ''  // Clear any previous status
   statusDiv.className = ''    // Clear any previous styling
   
-  ipcRenderer.send('print-file', {})
+  ipcRenderer.send('print-current-page')
 })
 
 document.getElementById('printFile').addEventListener('click', async () => {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = '.pdf,.txt,.doc,.docx'
+  const statusDiv = document.getElementById('printStatus')
+  statusDiv.textContent = ''  // Clear any previous status
+  statusDiv.className = ''    // Clear any previous styling
   
-  input.onchange = async (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      const statusDiv = document.getElementById('printStatus')
-      statusDiv.textContent = ''  // Clear any previous status
-      statusDiv.className = ''    // Clear any previous styling
-      
-      // Convert the file path to the correct format
-      const filePath = file.path.replace(/\\/g, '/') // Convert Windows backslashes to forward slashes
-      
-      ipcRenderer.send('print-file', { filePath })
-    }
-  }
-  
-  input.click()
+  ipcRenderer.send('print-file')
 })
 
 ipcRenderer.on('print-complete', (event, result) => {
