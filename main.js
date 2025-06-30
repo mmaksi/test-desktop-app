@@ -39,27 +39,14 @@ app.whenReady().then(() => {
   createWindow()
 })
 
-// Handle get printers request
-ipcMain.handle('get-printers', async (event) => {
-  const win = BrowserWindow.getFocusedWindow()
-  try {
-    const printers = await win.webContents.getPrintersAsync()
-    return { success: true, printers }
-  } catch (error) {
-    console.error('Error getting printers:', error)
-    return { success: false, error: error.message }
-  }
-})
-
 // Handle printing request
-ipcMain.on('print-file', async (event, { filePath, printerName }) => {
+ipcMain.on('print-file', async (event, { filePath }) => {
   const win = BrowserWindow.getFocusedWindow()
   
   try {
     const data = {
       silent: false,
       printBackground: true,
-      deviceName: printerName || '', // Use selected printer or show dialog if empty
     }
     
     // If filePath is provided, print that file, otherwise print current window
