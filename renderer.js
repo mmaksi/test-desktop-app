@@ -3,8 +3,8 @@ const { ipcRenderer } = require('electron')
 // Print functionality
 document.getElementById('printCurrentPage').addEventListener('click', async () => {
   const statusDiv = document.getElementById('printStatus')
-  statusDiv.className = 'info'
-  statusDiv.textContent = 'Opening print dialog...'
+  statusDiv.textContent = ''  // Clear any previous status
+  statusDiv.className = ''    // Clear any previous styling
   
   ipcRenderer.send('print-file', {})
 })
@@ -18,8 +18,8 @@ document.getElementById('printFile').addEventListener('click', async () => {
     const file = e.target.files[0]
     if (file) {
       const statusDiv = document.getElementById('printStatus')
-      statusDiv.className = 'info'
-      statusDiv.textContent = 'Opening print dialog...'
+      statusDiv.textContent = ''  // Clear any previous status
+      statusDiv.className = ''    // Clear any previous styling
       
       ipcRenderer.send('print-file', { filePath: file.path })
     }
