@@ -21,7 +21,10 @@ document.getElementById('printFile').addEventListener('click', async () => {
       statusDiv.textContent = ''  // Clear any previous status
       statusDiv.className = ''    // Clear any previous styling
       
-      ipcRenderer.send('print-file', { filePath: file.path })
+      // Convert the file path to the correct format
+      const filePath = file.path.replace(/\\/g, '/') // Convert Windows backslashes to forward slashes
+      
+      ipcRenderer.send('print-file', { filePath })
     }
   }
   

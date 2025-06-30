@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron')
 const { autoUpdater } = require('electron-updater')
 const path = require('path')
+const fs = require('fs')
 
 // Configure auto updater
 autoUpdater.autoDownload = false
@@ -58,6 +59,11 @@ ipcMain.on('print-file', async (event, { filePath }) => {
     
     // If filePath is provided, print that file, otherwise print current window
     if (filePath) {
+      // Verify file exists
+      if (!fs.existsSync(filePath)) {
+        throw new Error('Selected file does not exist')
+      }
+
       // Create a new window to load and print the file
       const printWindow = new BrowserWindow({
         show: false,
@@ -68,7 +74,31 @@ ipcMain.on('print-file', async (event, { filePath }) => {
       })
       
       try {
-        await printWindow.loadFile(filePath)
+        // For PDF files, use loadURL with file protocol
+        if (filePath.toLowerCase().endsWith('.pdf')) {
+          await printWindow.loadURL(`file://${filePath}`)
+        } else {
+          // For other files, we'll create a simple HTML wrapper
+          const fileContent = fs.readFileSync(filePath, 'utf-8')
+          const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <meta charset="UTF-8">
+                <style>
+                  body {
+                    font-family: monospace;
+                    white-space: pre-wrap;
+                    padding: 20px;
+                  }
+                </style>
+              </head>
+              <body>${fileContent}</body>
+            </html>
+          `
+          await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`)
+        }
+
         // Wait for the window to finish loading
         await new Promise(resolve => printWindow.webContents.on('did-finish-load', resolve))
         
