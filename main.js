@@ -55,6 +55,7 @@ ipcMain.on('print-file', async (event, { filePath }) => {
       },
       landscape: false,
       scaleFactor: 100,
+      showPrintDialog: true
     }
     
     // If filePath is provided, print that file, otherwise print current window
@@ -102,8 +103,10 @@ ipcMain.on('print-file', async (event, { filePath }) => {
         // Wait for the window to finish loading
         await new Promise(resolve => printWindow.webContents.on('did-finish-load', resolve))
         
+        // Use the newer print API
         const success = await new Promise((resolve) => {
-          printWindow.webContents.print(printOptions, (success, failureReason) => {
+          printWindow.webContents.print(printOptions, (success, errorType) => {
+            console.log('Print callback:', success, errorType)
             resolve(success)
           })
         })
@@ -128,7 +131,8 @@ ipcMain.on('print-file', async (event, { filePath }) => {
 
       try {
         const success = await new Promise((resolve) => {
-          mainWindow.webContents.print(printOptions, (success, failureReason) => {
+          mainWindow.webContents.print(printOptions, (success, errorType) => {
+            console.log('Print callback:', success, errorType)
             resolve(success)
           })
         })
