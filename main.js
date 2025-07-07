@@ -120,7 +120,7 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
         console.log('Creating print window for file:', filePath)
         
         const printWindow = new BrowserWindow({
-          show: true, // Make window visible for debugging
+          show: false, // Hide window during printing process
           width: 800,
           height: 600,
           webPreferences: {
@@ -175,9 +175,6 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
             )
           ])
           
-          // Add a small delay to ensure content is ready
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          
           console.log('Window loaded successfully, starting print job...')
           
           // Print the file content directly - this will show the native print dialog
@@ -208,12 +205,10 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
             }
           }
           
-          // Close the window after a short delay to allow user to see what happened
-          setTimeout(() => {
-            if (printWindow && !printWindow.isDestroyed()) {
-              printWindow.close()
-            }
-          }, 2000)
+          // Close the window immediately after printing
+          if (printWindow && !printWindow.isDestroyed()) {
+            printWindow.close()
+          }
         }
       } else {
         // For unsupported file types, try to open with system default app
