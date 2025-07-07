@@ -17,7 +17,7 @@ document.getElementById('printCurrentPage').addEventListener('click', () => {
 document.getElementById('printFile').addEventListener('click', () => {
   const input = document.createElement('input')
   input.type = 'file'
-  input.accept = '.pdf,.txt,.doc,.docx,.html,.htm'
+  input.accept = '.pdf,.txt,.doc,.docx,.html,.htm,.md'
   
   input.onchange = (e) => {
     const file = e.target.files[0]
@@ -34,7 +34,11 @@ document.getElementById('printFile').addEventListener('click', () => {
 ipcRenderer.on('print-complete', (event, result) => {
   if (result.success) {
     printStatus.className = 'success'
-    printStatus.textContent = 'Print job sent successfully!'
+    if (result.message) {
+      printStatus.textContent = result.message
+    } else {
+      printStatus.textContent = 'Print job sent successfully!'
+    }
   } else {
     printStatus.className = 'error'
     printStatus.textContent = result.error || 'Failed to print. Please make sure a printer is properly connected.'

@@ -1,5 +1,7 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
+const { app, BrowserWindow, ipcMain, shell } = require('electron')
 const { autoUpdater } = require('electron-updater')
+const path = require('path')
+const fs = require('fs')
 
 // Configure auto updater
 autoUpdater.autoDownload = false
@@ -13,7 +15,8 @@ const createWindow = () => {
     height: 600,
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false
+      contextIsolation: false,
+      webSecurity: false // Allow loading local files
     }
   })
 
@@ -57,33 +60,107 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
     }
     
     if (filePath) {
-      // Print file
-      const printWindow = new BrowserWindow({
-        show: false,
-        webPreferences: {
-          nodeIntegration: true,
-          contextIsolation: false
-        }
-      })
-      
-      try {
-        await printWindow.loadFile(filePath)
-        // Wait for the window to finish loading
-        await new Promise(resolve => printWindow.webContents.on('did-finish-load', resolve))
-        
-        const success = await new Promise((resolve) => {
-          printWindow.webContents.print(printOptions, (success) => resolve(success))
-        })
-        
-        event.reply('print-complete', { success })
-      } catch (printError) {
-        console.error('Print file error:', printError)
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
         event.reply('print-complete', { 
           success: false, 
-          error: printError.message || 'Failed to print file. Please check the file format and try again.'
+          error: 'File not found: ' + filePath
         })
-      } finally {
-        printWindow.close()
+        return
+      }
+
+      const fileExtension = path.extname(filePath).toLowerCase()
+      
+      // Handle different file types
+      if (fileExtension === '.pdf') {
+        // For PDF files, use the system's default PDF viewer to print
+        try {
+          await shell.openPath(filePath)
+          event.reply('print-complete', { 
+            success: true,
+            message: 'PDF opened in default viewer. Please use the print option in the PDF viewer.'
+          })
+        } catch (error) {
+          event.reply('print-complete', { 
+            success: false, 
+            error: 'Failed to open PDF file: ' + error.message
+          })
+        }
+        return
+      }
+      
+      // For text files, HTML files, and other web-compatible formats
+      if (['.txt', '.html', '.htm', '.md'].includes(fileExtension)) {
+        const printWindow = new BrowserWindow({
+          show: false,
+          webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false,
+            webSecurity: false
+          }
+        })
+        
+        try {
+          if (fileExtension === '.txt' || fileExtension === '.md') {
+            // For text files, create HTML wrapper
+            const content = fs.readFileSync(filePath, 'utf8')
+            const htmlContent = `
+              <!DOCTYPE html>
+              <html>
+                <head>
+                  <meta charset="UTF-8">
+                  <title>Print Document</title>
+                  <style>
+                    body { 
+                      font-family: monospace; 
+                      white-space: pre-wrap; 
+                      padding: 20px; 
+                      line-height: 1.4;
+                    }
+                  </style>
+                </head>
+                <body>${content}</body>
+              </html>
+            `
+            await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`)
+          } else {
+            // For HTML files, load directly
+            await printWindow.loadFile(filePath)
+          }
+          
+          // Wait for the window to finish loading
+          await new Promise(resolve => {
+            printWindow.webContents.once('did-finish-load', resolve)
+          })
+          
+          const success = await new Promise((resolve) => {
+            printWindow.webContents.print(printOptions, (success) => resolve(success))
+          })
+          
+          event.reply('print-complete', { success })
+        } catch (printError) {
+          console.error('Print file error:', printError)
+          event.reply('print-complete', { 
+            success: false, 
+            error: 'Failed to print file: ' + printError.message
+          })
+        } finally {
+          printWindow.close()
+        }
+      } else {
+        // For unsupported file types, try to open with system default app
+        try {
+          await shell.openPath(filePath)
+          event.reply('print-complete', { 
+            success: true,
+            message: `File opened in default application. Please use the print option in the application.`
+          })
+        } catch (error) {
+          event.reply('print-complete', { 
+            success: false, 
+            error: `Unsupported file type: ${fileExtension}. Cannot print this file directly.`
+          })
+        }
       }
     } else {
       // Print current page
