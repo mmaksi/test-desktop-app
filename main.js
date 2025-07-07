@@ -99,18 +99,50 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
       
       // Handle different file types
       if (fileExtension === '.pdf') {
-        // For PDF files, use the system's default PDF viewer to print
+        // For PDF files, print directly from the app
+        console.log('Creating print window for PDF file:', filePath)
+        
+        const printWindow = new BrowserWindow({
+          show: false, // Hide window during printing process
+          width: 800,
+          height: 600,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            webSecurity: false,
+            plugins: true // Enable PDF plugin
+          }
+        })
+        
         try {
-          await shell.openPath(filePath)
-          event.reply('print-complete', { 
-            success: true,
-            message: 'PDF opened in default viewer. Please use the print option in the PDF viewer.'
+          console.log('Loading PDF file in print window...')
+          
+          // Load PDF file directly - Electron has built-in PDF viewer
+          await printWindow.loadFile(filePath)
+          
+          console.log('PDF loaded successfully, starting print job...')
+          
+          // Print the PDF content directly
+          const success = await new Promise((resolve) => {
+            printWindow.webContents.print(printOptions, (success) => {
+              console.log('PDF print callback received:', success)
+              resolve(success)
+            })
           })
-        } catch (error) {
+          
+          console.log('PDF print result:', success)
+          event.reply('print-complete', { success })
+        } catch (printError) {
+          console.error('PDF print error:', printError)
           event.reply('print-complete', { 
             success: false, 
-            error: 'Failed to open PDF file: ' + error.message
+            error: 'Failed to print PDF file: ' + printError.message
           })
+        } finally {
+          // Close the window immediately after printing
+          if (printWindow && !printWindow.isDestroyed()) {
+            printWindow.close()
+          }
         }
         return
       }
