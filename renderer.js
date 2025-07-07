@@ -14,21 +14,15 @@ document.getElementById('printCurrentPage').addEventListener('click', () => {
   ipcRenderer.send('print-file', {})
 })
 
-document.getElementById('printFile').addEventListener('click', () => {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = '.pdf,.txt,.doc,.docx,.html,.htm,.md'
+document.getElementById('printFile').addEventListener('click', async () => {
+  printStatus.textContent = ''
+  printStatus.className = ''
   
-  input.onchange = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      printStatus.textContent = ''
-      printStatus.className = ''
-      ipcRenderer.send('print-file', { filePath: file.path })
-    }
+  // Use Electron's dialog API to select file
+  const filePath = await ipcRenderer.invoke('dialog:openFile')
+  if (filePath) {
+    ipcRenderer.send('print-file', { filePath: filePath })
   }
-  
-  input.click()
 })
 
 ipcRenderer.on('print-complete', (event, result) => {

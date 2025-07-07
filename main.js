@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron')
 const { autoUpdater } = require('electron-updater')
 const path = require('path')
 const fs = require('fs')
@@ -37,6 +37,26 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow()
   }
+})
+
+// File dialog handler
+ipcMain.handle('dialog:openFile', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [
+      { name: 'All Supported Files', extensions: ['pdf', 'txt', 'html', 'htm', 'md', 'doc', 'docx'] },
+      { name: 'PDF Files', extensions: ['pdf'] },
+      { name: 'Text Files', extensions: ['txt', 'md'] },
+      { name: 'HTML Files', extensions: ['html', 'htm'] },
+      { name: 'Word Documents', extensions: ['doc', 'docx'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  })
+  
+  if (!result.canceled && result.filePaths.length > 0) {
+    return result.filePaths[0]
+  }
+  return null
 })
 
 // Print handling
