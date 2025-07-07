@@ -14,6 +14,23 @@ document.getElementById('printCurrentPage').addEventListener('click', () => {
   ipcRenderer.send('print-file', {})
 })
 
+document.getElementById('printFile').addEventListener('click', () => {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.pdf,.txt,.doc,.docx,.html,.htm'
+  
+  input.onchange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      printStatus.textContent = ''
+      printStatus.className = ''
+      ipcRenderer.send('print-file', { filePath: file.path })
+    }
+  }
+  
+  input.click()
+})
+
 ipcRenderer.on('print-complete', (event, result) => {
   if (result.success) {
     printStatus.className = 'success'

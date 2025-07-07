@@ -35,7 +35,7 @@ app.on('activate', () => {
 })
 
 // Print handling
-ipcMain.on('print-file', async (event) => {
+ipcMain.on('print-file', async (event, { filePath }) => {
   const win = BrowserWindow.getFocusedWindow()
   
   try {
@@ -48,11 +48,43 @@ ipcMain.on('print-file', async (event) => {
       scaleFactor: 100,
     }
     
-    const success = await new Promise((resolve) => {
-      win.webContents.print(printOptions, (success) => resolve(success))
-    })
-    
-    event.reply('print-complete', { success })
+    if (filePath) {
+      // Print file
+      const printWindow = new BrowserWindow({
+        show: false,
+        webPreferences: {
+          nodeIntegration: true,
+          contextIsolation: false
+        }
+      })
+      
+      try {
+        await printWindow.loadFile(filePath)
+        // Wait for the window to finish loading
+        await new Promise(resolve => printWindow.webContents.on('did-finish-load', resolve))
+        
+        const success = await new Promise((resolve) => {
+          printWindow.webContents.print(printOptions, (success) => resolve(success))
+        })
+        
+        event.reply('print-complete', { success })
+      } catch (printError) {
+        console.error('Print file error:', printError)
+        event.reply('print-complete', { 
+          success: false, 
+          error: printError.message || 'Failed to print file. Please check the file format and try again.'
+        })
+      } finally {
+        printWindow.close()
+      }
+    } else {
+      // Print current page
+      const success = await new Promise((resolve) => {
+        win.webContents.print(printOptions, (success) => resolve(success))
+      })
+      
+      event.reply('print-complete', { success })
+    }
   } catch (error) {
     console.error('Print error:', error)
     event.reply('print-complete', { 
