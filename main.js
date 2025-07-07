@@ -41,6 +41,8 @@ app.on('activate', () => {
 
 // Print handling
 ipcMain.on('print-file', async (event, { filePath } = {}) => {
+  console.log('Print request received:', { filePath })
+  
   if (!mainWindow) {
     event.reply('print-complete', { 
       success: false, 
@@ -60,8 +62,11 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
     }
     
     if (filePath) {
+      console.log('Processing file:', filePath)
+      
       // Check if file exists
       if (!fs.existsSync(filePath)) {
+        console.log('File not found:', filePath)
         event.reply('print-complete', { 
           success: false, 
           error: 'File not found: ' + filePath
@@ -70,6 +75,7 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
       }
 
       const fileExtension = path.extname(filePath).toLowerCase()
+      console.log('File extension:', fileExtension)
       
       // Handle different file types
       if (fileExtension === '.pdf') {
@@ -91,6 +97,8 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
       
       // For text files, HTML files, and other web-compatible formats
       if (['.txt', '.html', '.htm', '.md'].includes(fileExtension)) {
+        console.log('Creating print window for file:', filePath)
+        
         const printWindow = new BrowserWindow({
           show: false,
           webPreferences: {
@@ -102,6 +110,7 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
         
         try {
           if (fileExtension === '.txt' || fileExtension === '.md') {
+            console.log('Processing text file')
             // For text files, create HTML wrapper
             const content = fs.readFileSync(filePath, 'utf8')
             const htmlContent = `
@@ -109,7 +118,7 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
               <html>
                 <head>
                   <meta charset="UTF-8">
-                  <title>Print Document</title>
+                  <title>Print Document - ${path.basename(filePath)}</title>
                   <style>
                     body { 
                       font-family: monospace; 
@@ -119,24 +128,29 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
                     }
                   </style>
                 </head>
-                <body>${content}</body>
+                <body>${content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</body>
               </html>
             `
             await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`)
           } else {
+            console.log('Processing HTML file')
             // For HTML files, load directly
             await printWindow.loadFile(filePath)
           }
           
+          console.log('Waiting for window to load...')
           // Wait for the window to finish loading
           await new Promise(resolve => {
             printWindow.webContents.once('did-finish-load', resolve)
           })
           
+          console.log('Starting print job for file...')
+          // Print the file content directly - this will show the native print dialog
           const success = await new Promise((resolve) => {
             printWindow.webContents.print(printOptions, (success) => resolve(success))
           })
           
+          console.log('File print result:', success)
           event.reply('print-complete', { success })
         } catch (printError) {
           console.error('Print file error:', printError)
@@ -163,11 +177,13 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
         }
       }
     } else {
-      // Print current page
+      console.log('Printing current page...')
+      // Print current page - this will show the native print dialog
       const success = await new Promise((resolve) => {
         mainWindow.webContents.print(printOptions, (success) => resolve(success))
       })
       
+      console.log('Current page print result:', success)
       event.reply('print-complete', { success })
     }
   } catch (error) {
