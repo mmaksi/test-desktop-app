@@ -135,7 +135,7 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
           
           if (fileExtension === '.txt' || fileExtension === '.md') {
             console.log('Processing text file')
-            // For text files, create HTML wrapper
+            // For text files, create HTML wrapper and save as temp file
             const content = fs.readFileSync(filePath, 'utf8')
             const htmlContent = `
               <!DOCTYPE html>
@@ -155,7 +155,10 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
                 <body>${content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</body>
               </html>
             `
-            loadPromise = printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`)
+            // Create temporary HTML file
+            const tempPath = path.join(__dirname, 'temp_print.html')
+            fs.writeFileSync(tempPath, htmlContent, 'utf8')
+            loadPromise = printWindow.loadFile(tempPath)
           } else {
             console.log('Processing HTML file')
             // For HTML files, load directly
@@ -172,17 +175,8 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
             )
           ])
           
-          // Additional wait for did-finish-load event
-          await new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-              reject(new Error('did-finish-load timeout'))
-            }, 5000)
-            
-            printWindow.webContents.once('did-finish-load', () => {
-              clearTimeout(timeout)
-              resolve()
-            })
-          })
+          // Add a small delay to ensure content is ready
+          await new Promise(resolve => setTimeout(resolve, 1000))
           
           console.log('Window loaded successfully, starting print job...')
           
@@ -203,6 +197,17 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
             error: 'Failed to print file: ' + printError.message
           })
         } finally {
+          // Clean up temporary file if it was created
+          const tempPath = path.join(__dirname, 'temp_print.html')
+          if (fs.existsSync(tempPath)) {
+            try {
+              fs.unlinkSync(tempPath)
+              console.log('Temporary file cleaned up')
+            } catch (err) {
+              console.log('Could not clean up temporary file:', err.message)
+            }
+          }
+          
           // Close the window after a short delay to allow user to see what happened
           setTimeout(() => {
             if (printWindow && !printWindow.isDestroyed()) {
