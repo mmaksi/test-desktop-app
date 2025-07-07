@@ -5,8 +5,10 @@ const { autoUpdater } = require('electron-updater')
 autoUpdater.autoDownload = false
 autoUpdater.autoInstallOnAppQuit = true
 
+let mainWindow
+
 const createWindow = () => {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
@@ -15,7 +17,7 @@ const createWindow = () => {
     }
   })
 
-  win.loadFile('index.html')
+  mainWindow.loadFile('index.html')
   autoUpdater.checkForUpdates()
 }
 
@@ -35,8 +37,14 @@ app.on('activate', () => {
 })
 
 // Print handling
-ipcMain.on('print-file', async (event, { filePath }) => {
-  const win = BrowserWindow.getFocusedWindow()
+ipcMain.on('print-file', async (event, { filePath } = {}) => {
+  if (!mainWindow) {
+    event.reply('print-complete', { 
+      success: false, 
+      error: 'No window available for printing'
+    })
+    return
+  }
   
   try {
     const printOptions = {
@@ -80,7 +88,7 @@ ipcMain.on('print-file', async (event, { filePath }) => {
     } else {
       // Print current page
       const success = await new Promise((resolve) => {
-        win.webContents.print(printOptions, (success) => resolve(success))
+        mainWindow.webContents.print(printOptions, (success) => resolve(success))
       })
       
       event.reply('print-complete', { success })
@@ -96,15 +104,21 @@ ipcMain.on('print-file', async (event, { filePath }) => {
 
 // Auto-update events
 autoUpdater.on('update-available', (info) => {
-  BrowserWindow.getFocusedWindow()?.webContents.send('update-available', info)
+  if (mainWindow) {
+    mainWindow.webContents.send('update-available', info)
+  }
 })
 
 autoUpdater.on('download-progress', (progressObj) => {
-  BrowserWindow.getFocusedWindow()?.webContents.send('download-progress', progressObj)
+  if (mainWindow) {
+    mainWindow.webContents.send('download-progress', progressObj)
+  }
 })
 
 autoUpdater.on('update-downloaded', (info) => {
-  BrowserWindow.getFocusedWindow()?.webContents.send('update-downloaded', info)
+  if (mainWindow) {
+    mainWindow.webContents.send('update-downloaded', info)
+  }
 })
 
 // Update handling
