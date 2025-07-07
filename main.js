@@ -120,7 +120,9 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
         console.log('Creating print window for file:', filePath)
         
         const printWindow = new BrowserWindow({
-          show: false,
+          show: true, // Make window visible for debugging
+          width: 800,
+          height: 600,
           webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
@@ -129,6 +131,8 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
         })
         
         try {
+          let loadPromise
+          
           if (fileExtension === '.txt' || fileExtension === '.md') {
             console.log('Processing text file')
             // For text files, create HTML wrapper
@@ -151,23 +155,43 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
                 <body>${content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</body>
               </html>
             `
-            await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`)
+            loadPromise = printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`)
           } else {
             console.log('Processing HTML file')
             // For HTML files, load directly
-            await printWindow.loadFile(filePath)
+            loadPromise = printWindow.loadFile(filePath)
           }
           
           console.log('Waiting for window to load...')
-          // Wait for the window to finish loading
-          await new Promise(resolve => {
-            printWindow.webContents.once('did-finish-load', resolve)
+          
+          // Wait for the window to finish loading with timeout
+          await Promise.race([
+            loadPromise,
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Load timeout')), 10000)
+            )
+          ])
+          
+          // Additional wait for did-finish-load event
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              reject(new Error('did-finish-load timeout'))
+            }, 5000)
+            
+            printWindow.webContents.once('did-finish-load', () => {
+              clearTimeout(timeout)
+              resolve()
+            })
           })
           
-          console.log('Starting print job for file...')
+          console.log('Window loaded successfully, starting print job...')
+          
           // Print the file content directly - this will show the native print dialog
           const success = await new Promise((resolve) => {
-            printWindow.webContents.print(printOptions, (success) => resolve(success))
+            printWindow.webContents.print(printOptions, (success) => {
+              console.log('Print callback received:', success)
+              resolve(success)
+            })
           })
           
           console.log('File print result:', success)
@@ -179,7 +203,12 @@ ipcMain.on('print-file', async (event, { filePath } = {}) => {
             error: 'Failed to print file: ' + printError.message
           })
         } finally {
-          printWindow.close()
+          // Close the window after a short delay to allow user to see what happened
+          setTimeout(() => {
+            if (printWindow && !printWindow.isDestroyed()) {
+              printWindow.close()
+            }
+          }, 2000)
         }
       } else {
         // For unsupported file types, try to open with system default app
